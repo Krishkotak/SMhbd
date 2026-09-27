@@ -37,7 +37,7 @@
             transform: translateY(100vh) rotate(45deg);
             opacity: 0;
             transition:
-                transform 1.2s cubic-bezier(0.5, 0, 1, 1),
+                transform 1.8s cubic-bezier(0.5, 0, 1, 1),
                 opacity 0.5s 0.7s;
         }
 
@@ -57,8 +57,8 @@
             transform: scale(80) rotate(15deg) !important;
             opacity: 0;
             transition:
-                transform 0.8s ease-in,
-                opacity 0.2s ease-in 0.6s;
+                transform 1.05s ease-in,
+                opacity 0.2s ease-in 0.8s;
             z-index: 100;
         }
 
@@ -363,6 +363,12 @@
                 Happy Birthday!
             </h2>
 
+            <img
+                src="face.png"
+                alt="Birthday face"
+                class="w-40 h-40 object-contain drop-shadow-lg mb-4"
+            >
+
             <div class="w-24 h-1 bg-pink-300 rounded-full mx-auto mb-6"></div>
 
             <p class="text-gray-700 text-lg text-center mb-8 px-4 font-semibold">
@@ -543,7 +549,7 @@
 
                 startPartyRunning();
                 scrollToNextStage();
-            }, 800);
+            }, 1100);
         }
 
         // ============================================================
