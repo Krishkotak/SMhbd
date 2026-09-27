@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mlerm's Birthday Chase!</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            overscroll-behavior: none;
+            touch-action: none;
+            background-color: #fdf2f8;
+        }
+
+        .handwriting {
+            font-family: 'Dancing Script', cursive;
+        }
+
+        /* Mlerm running animation */
+        @keyframes run {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            25% { transform: translate(-50%, -60%) rotate(-5deg); }
+            75% { transform: translate(-50%, -60%) rotate(5deg); }
+        }
+
+        .animate-run {
+            animation: run 0.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        /* Intro cake falling away */
+        .cake-drop {
+            transform: translateY(100vh) rotate(45deg);
+            opacity: 0;
+            transition:
+                transform 1.2s cubic-bezier(0.5, 0, 1, 1),
+                opacity 0.5s 0.7s;
+        }
+
+        /* Wrong-answer shake */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Final cake splat */
+        .cake-splat {
+            transform: scale(80) rotate(15deg) !important;
+            opacity: 0;
+            transition:
+                transform 0.8s ease-in,
+                opacity 0.2s ease-in 0.6s;
+            z-index: 100;
+        }
+
+        /* Party layer stays centered with Mlerm while the track moves */
+        #party-members {
+            position: absolute;
+            inset: 0;
+            z-index: 19;
+            pointer-events: none;
+        }
+
+        .party-character {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5.5rem;
+            height: 5.5rem;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
+            opacity: 0;
+            --party-x: 0px;
+            --party-y: 0px;
+            transform:
+                translate(calc(-50% + var(--party-x)),
+                          calc(-50% + var(--party-y)))
+                scale(0.7);
+        }
+
+        @keyframes party-join {
+            from {
+                opacity: 0;
+                transform:
+                    translate(calc(-50% + var(--party-x)),
+                              calc(-50% + var(--party-y)))
+                    scale(0.7);
+            }
+            to {
+                opacity: 1;
+                transform:
+                    translate(calc(-50% + var(--party-x)),
+                              calc(-50% + var(--party-y)))
+                    scale(1);
+            }
+        }
+
+        @keyframes party-run {
+            0%, 100% {
+                transform:
+                    translate(calc(-50% + var(--party-x)),
+                              calc(-50% + var(--party-y)))
+                    rotate(0deg);
+            }
+            25% {
+                transform:
+                    translate(calc(-50% + var(--party-x)),
+                              calc(-50% + var(--party-y) - 5px))
+                    rotate(-4deg);
+            }
+            75% {
+                transform:
+                    translate(calc(-50% + var(--party-x)),
+                              calc(-50% + var(--party-y) - 5px))
+                    rotate(4deg);
+            }
+        }
+
+        .animate-party-run {
+            animation: party-run 0.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        /* Newly unlocked companion joins Mlerm during the scroll to the next obstacle. */
+        .party-character.just-unlocked {
+            animation: party-join-run 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            z-index: 21;
+        }
+
+        @keyframes party-join-run {
+            0% {
+                opacity: 0;
+                transform:
+                    translate(
+                        calc(-50% + var(--party-start-x)),
+                        calc(-50% + var(--party-start-y))
+                    )
+                    scale(0.65)
+                    rotate(-10deg);
+            }
+            20% {
+                opacity: 1;
+                transform:
+                    translate(
+                        calc(-50% + var(--party-mid-x)),
+                        calc(-50% + var(--party-mid-y))
+                    )
+                    scale(0.8)
+                    rotate(6deg);
+            }
+            55% {
+                opacity: 1;
+                transform:
+                    translate(
+                        calc(-50% + var(--party-near-x)),
+                        calc(-50% + var(--party-near-y))
+                    )
+                    scale(0.92)
+                    rotate(-4deg);
+            }
+            100% {
+                opacity: 1;
+                transform:
+                    translate(
+                        calc(-50% + var(--party-x)),
+                        calc(-50% + var(--party-y))
+                    )
+                    scale(1)
+                    rotate(0deg);
+            }
+        }
+
+        /* Whole party converges into the cake at the finale */
+        .party-character.approach-cake {
+            animation: party-approach-cake 0.55s ease-in forwards;
+        }
+
+        /* Mlerm uses the same finale movement, but has its own base sizing/transform. */
+        #player-cat.player-approach-cake {
+            animation: player-approach-cake 0.55s ease-in forwards;
+        }
+
+        @keyframes player-approach-cake {
+            0% {
+                opacity: 1;
+                transform:
+                    translate(-50%, -50%)
+                    scale(1)
+                    rotate(0deg);
+            }
+            60% {
+                opacity: 1;
+                transform:
+                    translate(-50%, -50%)
+                    scale(0.82)
+                    rotate(-2deg);
+            }
+            100% {
+                opacity: 0;
+                transform:
+                    translate(-50%, -50%)
+                    scale(0.45)
+                    rotate(8deg);
+            }
+        }
+
+        @keyframes party-approach-cake {
+            0% {
+                opacity: 1;
+                transform:
+                    translate(calc(-50% + var(--party-x)),
+                              calc(-50% + var(--party-y)))
+                    scale(1) rotate(0deg);
+            }
+            60% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.82) rotate(-2deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.45) rotate(8deg);
+            }
+        }
+
+        /* Unlock modal */
+        #unlock-modal {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        #unlock-card {
+            animation: unlock-pop 0.45s cubic-bezier(0.2, 1.2, 0.3, 1);
+        }
+
+        @keyframes unlock-pop {
+            0% {
+                opacity: 0;
+                transform: scale(0.75) rotate(-3deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        /* Obstacle disappears */
+        .obstacle-clear {
+            transform: scale(0) rotate(180deg);
+            opacity: 0;
+            transition:
+                transform 0.5s ease-in,
+                opacity 0.5s;
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="w-screen h-screen flex items-center justify-center bg-gray-900 select-none">
+
+    <div id="game-container"
+         class="w-full max-w-md h-[100dvh] bg-gradient-to-b from-pink-100 via-pink-50 to-white relative overflow-hidden shadow-2xl">
+
+        <!-- Moving world -->
+        <div id="track"
+             class="absolute top-0 left-0 w-full flex flex-col transition-transform ease-linear"
+             style="transform: translateY(0vh);">
+        </div>
+
+        <!-- Companions stay fixed with Mlerm -->
+        <div id="party-members" aria-hidden="true"></div>
+
+        <!-- Mlerm -->
+        <div id="player-cat"
+             class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-7xl z-20 transition-all duration-300">
+            <img src="mlerm.png"
+                 class="w-32 h-32 object-contain drop-shadow-md"
+                 alt="Mlerm">
+        </div>
+
+        <!-- Intro cake -->
+        <div id="intro-cake"
+             class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[20%] text-6xl z-10 transition-all">
+            🎂
+        </div>
+
+        <!-- Intro UI -->
+        <div id="intro-ui"
+             class="absolute inset-0 flex flex-col justify-end items-center pb-20 z-30 transition-opacity duration-500 bg-gradient-to-t from-pink-200/80 to-transparent">
+            <h1 class="text-3xl font-bold text-pink-600 mb-6 text-center drop-shadow-sm px-4">
+                Oh no!<br>Mlerm dropped the cake!
+            </h1>
+
+            <button id="start-btn"
+                    class="px-10 py-4 bg-pink-500 hover:bg-pink-400 text-white font-bold rounded-full shadow-lg border-4 border-white text-xl active:scale-95 transition-transform animate-bounce">
+                Start Chase!
+            </button>
+        </div>
+
+        <!-- Obstacle question modal -->
+        <div id="question-modal"
+             class="absolute inset-0 bg-white/60 backdrop-blur-sm z-40 flex flex-col justify-center items-center p-6 opacity-0 pointer-events-none transition-opacity duration-300">
+            <div id="question-card"
+                 class="bg-white rounded-3xl shadow-xl border-4 border-pink-300 w-full p-6 text-center transform scale-95 transition-transform duration-300">
+
+                <h2 id="question-title"
+                    class="text-2xl font-bold text-gray-800 mb-6">
+                    A giant rock blocks the way!
+                </h2>
+
+                <div id="options-container" class="flex flex-col gap-3"></div>
+            </div>
+        </div>
+
+        <!-- Character unlock modal -->
+        <div id="unlock-modal"
+             class="absolute inset-0 z-[45] flex flex-col justify-center items-center p-6 opacity-0 pointer-events-none transition-opacity duration-300">
+
+            <div id="unlock-card"
+                 class="bg-white rounded-3xl shadow-2xl border-4 border-pink-300 w-full max-w-sm p-6 text-center">
+
+                <div class="text-4xl mb-2">🎉</div>
+
+                <p class="text-pink-500 font-extrabold uppercase tracking-wide text-sm">
+                    New Friend!
+                </p>
+
+                <h2 id="unlock-title"
+                    class="text-2xl font-extrabold text-gray-800 mt-1">
+                    Hurray! Character unlocked!
+                </h2>
+
+                <div class="mt-5 mb-4 flex justify-center">
+                    <img id="unlock-image"
+                         src=""
+                         alt="Unlocked character"
+                         class="w-36 h-36 object-contain drop-shadow-lg">
+                </div>
+
+                <p id="unlock-subtitle"
+                   class="text-gray-500 font-semibold">
+                    They are joining Mlerm!
+                </p>
+            </div>
+        </div>
+
+        <!-- Final screen -->
+        <div id="end-screen"
+             class="absolute inset-0 flex flex-col justify-center items-center p-6 z-50 bg-white/95 opacity-0 pointer-events-none transition-opacity duration-1000">
+
+            <h2 class="handwriting text-6xl text-pink-500 mb-2 mt-4 text-center">
+                Happy Birthday!
+            </h2>
+
+            <div class="w-24 h-1 bg-pink-300 rounded-full mx-auto mb-6"></div>
+
+            <p class="text-gray-700 text-lg text-center mb-8 px-4 font-semibold">
+                You helped Mlerm get the cake back! Have the most wonderful birthday ever!
+            </p>
+
+            <button id="wish-btn"
+                    class="px-10 py-4 bg-gradient-to-r from-pink-400 to-purple-400 text-white font-bold rounded-full shadow-lg border-2 border-white text-xl active:scale-95 transition-transform">
+                Make a Wish ✨
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // GAME CONFIGURATION
+        // ============================================================
+
+        const obstacles = [
+            {
+                emoji: "👻",
+                prompt: "mlerm encounters courage the dog! courage is scared of a ghost! what should mlerm do ?",
+                options: [
+                    { text: "eat it", correct: false },
+                    { text: "sing hanuman chalisa", correct: true },
+                    { text: "Meow until it moves", correct: false }
+                ],
+                unlock: {
+                    name: "Courage the dog!",
+                    image: "courage.png"
+                }
+            },
+            {
+                emoji: "🤭",
+                prompt: "mlerm was called 'pretty' ! how will mlerm respond ?",
+                options: [
+                    { text: "'shut up !' then meows aggressively", correct: false },
+                    { text: "Smile creepily", correct: false },
+                    { text: "'what can i say'", correct: true }
+                ],
+                unlock: {
+                    name: "Maui",
+                    image: "maui.png"
+                }
+            },
+            {
+                emoji: "👶",
+                prompt: "mlerm encounters a victorian child! the child is getting bullied ! what should mlerm do ?",
+                options: [
+                    { text: "knife him", correct: true },
+                    { text: "Run away crying", correct: false },
+                    { text: "Offer the bully a treat", correct: false }
+                ],
+                unlock: {
+                    name: "victorian child",
+                    image: "vc.png"
+                }
+            },
+            {
+                emoji: "🍵",
+                prompt: "mlerm was feeling 'bechara' ! someone brought him matcha , who could he be?",
+                options: [
+                    { text: "trump", correct: false },
+                    { text: "epstein", correct: false },
+                    { text: "gary !", correct: true }
+                ],
+                unlock: {
+                    name: "gary obviously ",
+                    image: "gary.png"
+                }
+            }
+        ];
+
+        // ============================================================
+        // DOM
+        // ============================================================
+
+        const track = document.getElementById("track");
+        const playerCat = document.getElementById("player-cat");
+        const introCake = document.getElementById("intro-cake");
+        const startBtn = document.getElementById("start-btn");
+        const introUI = document.getElementById("intro-ui");
+
+        const questionModal = document.getElementById("question-modal");
+        const questionCard = document.getElementById("question-card");
+        const questionTitle = document.getElementById("question-title");
+        const optionsContainer = document.getElementById("options-container");
+
+        const unlockModal = document.getElementById("unlock-modal");
+        const unlockTitle = document.getElementById("unlock-title");
+        const unlockImage = document.getElementById("unlock-image");
+        const unlockSubtitle = document.getElementById("unlock-subtitle");
+        const partyMembers = document.getElementById("party-members");
+
+        const endScreen = document.getElementById("end-screen");
+        const wishBtn = document.getElementById("wish-btn");
+
+        // ============================================================
+        // GAME STATE
+        // ============================================================
+
+        let currentStage = 0;
+        const scrollDuration = 1500;
+
+        let gameStarted = false;
+        let gamePaused = false;
+        let isUnlocking = false;
+        let finaleTriggered = false;
+        let unlockedCharacters = 0;
+        let unlockTimer = null;
+        let scrollTimer = null;
+
+        // Companion positions around Mlerm.
+        const partySlots = [
+            { x: -88, y: 58 },
+            { x: 88, y: 58 },
+            { x: -108, y: -38 },
+            { x: 108, y: -38 },
+            { x: 0, y: 100 },
+            { x: -145, y: 15 },
+            { x: 145, y: 15 }
+        ];
+
+        // ============================================================
+        // TRACK
+        // ============================================================
+
+        function initTrack() {
+            let html = `
+                <div class="w-full h-[100dvh] flex items-center justify-center"></div>
+            `;
+
+            obstacles.forEach((obs, index) => {
+                html += `
+                    <div class="w-full h-[100dvh] flex items-center justify-center">
+                        <div id="obstacle-${index}"
+                             class="text-8xl transition-all duration-500 drop-shadow-xl">
+                            ${obs.emoji}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                <div class="w-full h-[100dvh] flex items-center justify-center">
+                    <div id="final-cake"
+                         class="text-8xl drop-shadow-2xl transition-all origin-center">
+                        🎂
+                    </div>
+                </div>
+            `;
+
+            track.innerHTML = html;
+        }
+
+        // ============================================================
+        // GAME START
+        // ============================================================
+
+        function startGame() {
+            if (gameStarted || finaleTriggered) return;
+
+            gameStarted = true;
+            gamePaused = false;
+            isUnlocking = false;
+
+            startBtn.disabled = true;
+
+            introUI.style.opacity = "0";
+            introUI.style.pointerEvents = "none";
+
+            introCake.classList.add("cake-drop");
+
+            setTimeout(() => {
+                introCake.style.display = "none";
+
+                if (finaleTriggered) return;
+
+                startPartyRunning();
+                scrollToNextStage();
+            }, 800);
+        }
+
+        // ============================================================
+        // RUNNING / SCROLLING
+        // ============================================================
+
+        function startPartyRunning() {
+            playerCat.classList.add("animate-run");
+
+            partyMembers
+                .querySelectorAll(".party-character")
+                .forEach(char => {
+                    // Existing teammates run normally. The newest teammate
+                    // keeps its synchronized entrance animation until the
+                    // scroll reaches the next obstacle.
+                    if (!char.classList.contains("just-unlocked")) {
+                        char.classList.add("animate-party-run");
+                    }
+                });
+        }
+
+        function stopPartyRunning() {
+            playerCat.classList.remove("animate-run");
+
+            partyMembers
+                .querySelectorAll(".party-character")
+                .forEach(char => {
+                    char.classList.remove("animate-party-run");
+                });
+        }
+
+        function scrollToNextStage() {
+            if (!gameStarted || gamePaused || isUnlocking || finaleTriggered) return;
+
+            currentStage++;
+
+            track.style.transitionDuration = `${scrollDuration}ms`;
+            track.style.transform =
+                `translateY(-${currentStage * 100}dvh)`;
+
+            clearTimeout(scrollTimer);
+
+            scrollTimer = setTimeout(() => {
+                stopPartyRunning();
+
+                // The newest companion has finished its entrance animation.
+                // From here onward it is a normal member of the settled team.
+                partyMembers
+                    .querySelectorAll(".party-character")
+                    .forEach(char => {
+                        char.classList.remove("just-unlocked");
+                    });
+
+                if (currentStage <= obstacles.length) {
+                    showQuestion(currentStage - 1);
+                } else {
+                    triggerFinale();
+                }
+            }, scrollDuration);
+        }
+
+        // ============================================================
+        // QUESTION MODAL
+        // ============================================================
+
+        function showQuestion(index) {
+            if (gamePaused || isUnlocking || finaleTriggered) return;
+
+            const obs = obstacles[index];
+
+            if (!obs) {
+                console.error("Invalid obstacle index:", index);
+                return;
+            }
+
+            questionTitle.innerText =
+                obs.prompt || "What should Mlerm do?";
+
+            optionsContainer.innerHTML = "";
+
+            obs.options.forEach((opt) => {
+                const btn = document.createElement("button");
+
+                btn.className =
+                    "w-full py-3 px-4 rounded-xl font-bold text-lg shadow-md " +
+                    "transition-all border-2 border-transparent active:scale-95 " +
+                    "bg-pink-100 text-pink-700 hover:bg-pink-200";
+
+                btn.innerText = opt.text;
+
+                btn.addEventListener("click", () => {
+                    handleAnswer(opt.correct, btn, index);
+                });
+
+                optionsContainer.appendChild(btn);
+            });
+
+            questionModal.classList.remove(
+                "opacity-0",
+                "pointer-events-none"
+            );
+            questionModal.classList.add("pointer-events-auto");
+
+            questionCard.classList.remove("scale-95");
+            questionCard.classList.add("scale-100");
+        }
+
+        function closeQuestionModal() {
+            questionModal.classList.add(
+                "opacity-0",
+                "pointer-events-none"
+            );
+            questionModal.classList.remove("pointer-events-auto");
+
+            questionCard.classList.add("scale-95");
+            questionCard.classList.remove("scale-100");
+        }
+
+        // ============================================================
+        // UNLOCK FLOW
+        // ============================================================
+
+        function showUnlockModal(character) {
+            if (!character || isUnlocking || finaleTriggered) return;
+
+            isUnlocking = true;
+            gamePaused = true;
+
+            unlockTitle.innerText =
+                `Hurray! ${character.name} unlocked!`;
+
+            unlockImage.src = character.image;
+            unlockImage.alt =
+                `${character.name} unlocked`;
+
+            unlockSubtitle.innerText =
+                `${character.name} is joining Mlerm!`;
+
+            unlockModal.classList.remove(
+                "opacity-0",
+                "pointer-events-none"
+            );
+            unlockModal.classList.add("pointer-events-auto");
+
+            clearTimeout(unlockTimer);
+
+            // Pause only for the 2-second unlock popup.
+            unlockTimer = setTimeout(() => {
+                hideUnlockModal();
+
+                // Add the new character before the next scroll starts.
+                // Its entrance animation runs for the same 1.5s as the scroll.
+                addCharacterToParty(character);
+
+                if (finaleTriggered) return;
+
+                isUnlocking = false;
+                gamePaused = false;
+
+                startPartyRunning();
+                scrollToNextStage();
+            }, 2000);
+        }
+
+        function hideUnlockModal() {
+            unlockModal.classList.add(
+                "opacity-0",
+                "pointer-events-none"
+            );
+            unlockModal.classList.remove("pointer-events-auto");
+        }
+
+        function addCharacterToParty(character) {
+            const slotIndex =
+                unlockedCharacters % partySlots.length;
+
+            const slot = partySlots[slotIndex];
+
+            const img = document.createElement("img");
+
+            img.src = character.image;
+            img.alt = character.name;
+            img.className = "party-character just-unlocked";
+
+            img.style.setProperty(
+                "--party-x",
+                `${slot.x}px`
+            );
+
+            img.style.setProperty(
+                "--party-y",
+                `${slot.y}px`
+            );
+
+            // Start away from the final slot and run into formation
+            // during the scroll to the next obstacle.
+            img.style.setProperty(
+                "--party-start-x",
+                `${slot.x * 1.9}px`
+            );
+
+            img.style.setProperty(
+                "--party-start-y",
+                `${slot.y - 60}px`
+            );
+
+            img.style.setProperty(
+                "--party-mid-x",
+                `${slot.x * 1.35}px`
+            );
+
+            img.style.setProperty(
+                "--party-mid-y",
+                `${slot.y - 25}px`
+            );
+
+            img.style.setProperty(
+                "--party-near-x",
+                `${slot.x * 1.1}px`
+            );
+
+            img.style.setProperty(
+                "--party-near-y",
+                `${slot.y - 8}px`
+            );
+
+            img.addEventListener("error", () => {
+                console.warn(
+                    `Could not load character image: ${character.image}`
+                );
+            });
+
+            partyMembers.appendChild(img);
+            unlockedCharacters++;
+        }
+
+        // ============================================================
+        // ANSWERS
+        // ============================================================
+
+        function handleAnswer(
+            isCorrect,
+            btnElement,
+            obstacleIndex
+        ) {
+            if (gamePaused || isUnlocking || finaleTriggered) return;
+
+            const allBtns =
+                optionsContainer.querySelectorAll("button");
+
+            allBtns.forEach(btn => {
+                btn.style.pointerEvents = "none";
+            });
+
+            if (isCorrect) {
+                btnElement.classList.replace(
+                    "bg-pink-100",
+                    "bg-green-400"
+                );
+
+                btnElement.classList.replace(
+                    "text-pink-700",
+                    "text-white"
+                );
+
+                // The game remains paused through the entire unlock sequence.
+                gamePaused = true;
+
+                closeQuestionModal();
+
+                const obstacleEl =
+                    document.getElementById(
+                        `obstacle-${obstacleIndex}`
+                    );
+
+                if (obstacleEl) {
+                    obstacleEl.classList.add("obstacle-clear");
+                }
+
+                const character =
+                    obstacles[obstacleIndex]?.unlock;
+
+                if (!character) {
+                    // Safe fallback if an obstacle has no unlock character.
+                    gamePaused = false;
+                    startPartyRunning();
+                    scrollToNextStage();
+                    return;
+                }
+
+                showUnlockModal(character);
+
+            } else {
+                btnElement.classList.replace(
+                    "bg-pink-100",
+                    "bg-red-400"
+                );
+
+                btnElement.classList.replace(
+                    "text-pink-700",
+                    "text-white"
+                );
+
+                questionCard.classList.add("animate-shake");
+
+                setTimeout(() => {
+                    btnElement.classList.replace(
+                        "bg-red-400",
+                        "bg-pink-100"
+                    );
+
+                    btnElement.classList.replace(
+                        "text-white",
+                        "text-pink-700"
+                    );
+
+                    questionCard.classList.remove(
+                        "animate-shake"
+                    );
+
+                    allBtns.forEach(btn => {
+                        btn.style.pointerEvents = "auto";
+                    });
+                }, 500);
+            }
+        }
+
+        // ============================================================
+        // FINALE
+        // ============================================================
+
+        function triggerFinale() {
+            if (finaleTriggered) return;
+
+            finaleTriggered = true;
+            gamePaused = true;
+            isUnlocking = false;
+
+            const finalCake =
+                document.getElementById("final-cake");
+
+            if (!finalCake) {
+                console.error("Final cake not found.");
+                return;
+            }
+
+            stopPartyRunning();
+
+            // Brief pause after arriving at the cake.
+            setTimeout(() => {
+                if (!finaleTriggered) return;
+
+                // Mlerm and every unlocked character move into the cake.
+                partyMembers
+                    .querySelectorAll(".party-character")
+                    .forEach(char => {
+                        char.classList.add("approach-cake");
+                    });
+
+                playerCat.classList.add("player-approach-cake");
+
+                setTimeout(() => {
+                    playerCat.style.opacity = "0";
+                    finalCake.classList.add("cake-splat");
+
+                    setTimeout(() => {
+                        endScreen.classList.remove(
+                            "opacity-0",
+                            "pointer-events-none"
+                        );
+
+                        endScreen.classList.add(
+                            "pointer-events-auto"
+                        );
+
+                        fireConfetti();
+                    }, 800);
+                }, 550);
+            }, 500);
+        }
+
+        // ============================================================
+        // CONFETTI
+        // ============================================================
+
+        function fireConfetti() {
+            if (typeof confetti !== "function") return;
+
+            const count = 200;
+
+            const defaults = {
+                origin: { y: 0.7 },
+                colors: [
+                    "#fbcfe8",
+                    "#f9a8d4",
+                    "#f472b6",
+                    "#ffffff"
+                ]
+            };
+
+            function fire(particleRatio, opts) {
+                confetti(
+                    Object.assign(
+                        {},
+                        defaults,
+                        opts,
+                        {
+                            particleCount:
+                                Math.floor(
+                                    count * particleRatio
+                                )
+                        }
+                    )
+                );
+            }
+
+            fire(0.25, {
+                spread: 26,
+                startVelocity: 55
+            });
+
+            fire(0.2, {
+                spread: 60
+            });
+
+            fire(0.35, {
+                spread: 100,
+                decay: 0.91,
+                scalar: 0.8
+            });
+
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 25,
+                decay: 0.92,
+                scalar: 1.2
+            });
+
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 45
+            });
+        }
+
+        // ============================================================
+        // EVENT LISTENERS
+        // ============================================================
+
+        startBtn.addEventListener("click", startGame);
+
+        wishBtn.addEventListener("click", () => {
+            fireConfetti();
+
+            wishBtn.innerText = "Wish Granted! 💖";
+
+            wishBtn.classList.replace(
+                "from-pink-400",
+                "from-pink-500"
+            );
+        });
+
+        window.addEventListener("load", initTrack);
+    </script>
+</body>
+</html>
